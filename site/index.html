@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>流音 Flowcut · 歌曲剪辑</title>
+<meta name="description" content="在浏览器里导入任何格式的歌，裁剪、切开、拼接、淡入淡出，再导出成 MP3/WAV/FLAC/M4A/OGG/Opus/AIFF。全部本地处理，不上传。">
+<meta name="theme-color" content="#eef1f7">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/app.css">
+<script>
+  // 先定主题，避免闪烁
+  (function () { var t; try { t = localStorage.getItem('flowcut.theme'); } catch (e) {}
+    if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.dataset.theme = t; })();
+</script>
+</head>
+<body>
+<div class="wall" aria-hidden="true"><i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i><i class="blob b4"></i></div>
+<svg class="defs" aria-hidden="true" width="0" height="0">
+  <filter id="liquid" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.006 0.011" numOctaves="2" seed="11" result="noise"/>
+    <feGaussianBlur in="noise" stdDeviation="2.5" result="soft"/>
+    <feDisplacementMap in="SourceGraphic" in2="soft" scale="34" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <symbol id="i-import" viewBox="0 0 24 24"><path d="M12 3v11m0 0-4-4m4 4 4-4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5m5 5H10a6 6 0 0 0 0 12h3"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 15V3m0 0-4 4m4-4 4 4M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" class="fill"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1.2" class="fill"/><rect x="13.5" y="5" width="4" height="14" rx="1.2" class="fill"/></symbol>
+  <symbol id="i-split" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.6 7.6 20 18M8.6 16.4 20 6"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></symbol>
+  <symbol id="i-zin" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6m-3-3v6"/></symbol>
+  <symbol id="i-zout" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4m12-4v4h-4M8 12h8"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-9.5v.5"/></symbol>
+  <symbol id="i-clear" viewBox="0 0 24 24"><path d="M3 6h12M3 12h9M3 18h6m8-6 4 4m0-4-4 4"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 12h2m2-5v10m4-14v18m4-12v6m4-9v12m2-6h1"/></symbol>
+</svg>
+
+<header class="bar glass liquid">
+  <div class="brand"><svg class="logo"><use href="#i-wave"/></svg><b data-i18n="title">流音 Flowcut</b></div>
+  <nav class="tools">
+    <button class="btn" data-testid="import-btn" id="bImport"><svg><use href="#i-import"/></svg><span data-i18n="import">导入</span></button>
+    <button class="btn icon" data-testid="undo" id="bUndo"><svg><use href="#i-undo"/></svg></button>
+    <button class="btn icon" data-testid="redo" id="bRedo"><svg><use href="#i-redo"/></svg></button>
+    <button class="btn icon" id="bClear"><svg><use href="#i-clear"/></svg></button>
+    <span class="sep"></span>
+    <button class="btn icon" data-testid="lang" id="bLang"><svg><use href="#i-globe"/></svg></button>
+    <button class="btn icon" data-testid="theme" id="bTheme"><svg><use href="#i-moon"/></svg></button>
+    <button class="btn icon" data-testid="about" id="bAbout"><svg><use href="#i-info"/></svg></button>
+    <button class="btn accent" data-testid="export" id="bExport"><svg><use href="#i-export"/></svg><span data-i18n="export">导出</span></button>
+  </nav>
+  <input type="file" multiple accept="audio/*,.mp3,.wav,.flac,.m4a,.aac,.ogg,.oga,.opus,.webm,.wma,.aif,.aiff,.aifc,.alac,.amr,.ac3,.mka,.caf,.mp4" data-testid="import" id="file" hidden>
+</header>
+
+<main>
+  <section class="timeline glass" data-testid="timeline" id="timeline">
+    <div class="tl-body" id="tlBody">
+      <canvas id="wave" aria-hidden="true"></canvas>
+      <div class="scroller" id="scroller">
+        <div class="content" id="content">
+          <div class="ruler" id="ruler"></div>
+          <div class="lane" id="lane"></div>
+          <div class="playhead" id="playhead"><i></i></div>
+          <div class="drop-mark" id="dropMark"></div>
+        </div>
+      </div>
+      <div class="empty" id="empty">
+        <div class="empty-card">
+          <svg class="empty-ic"><use href="#i-import"/></svg>
+          <h2 data-i18n="dropTitle">把音乐拖到这里</h2>
+          <p data-i18n="dropSub"></p>
+          <p class="fmts" data-i18n="formats"></p>
+          <p class="privacy" data-i18n="privacy"></p>
+        </div>
+      </div>
+      <div class="drag-veil" id="dragVeil"><span data-i18n="dropTitle"></span></div>
+    </div>
+  </section>
+
+  <section class="transport glass liquid">
+    <div class="clock"><b id="tNow">0:00.00</b><span>/</span><span id="tTotal">0:00.00</span></div>
+    <div class="center">
+      <button class="btn icon round" data-testid="split" id="bSplit"><svg><use href="#i-split"/></svg></button>
+      <button class="btn play" data-testid="play" id="bPlay" aria-pressed="false"><svg id="playIc"><use href="#i-play"/></svg></button>
+      <button class="btn icon round" data-testid="delete" id="bDel"><svg><use href="#i-trash"/></svg></button>
+    </div>
+    <div class="zoom">
+      <button class="btn icon small" id="bZoomOut"><svg><use href="#i-zout"/></svg></button>
+      <input type="range" id="zoom" min="0" max="1000" value="400" aria-label="zoom">
+      <button class="btn icon small" id="bZoomIn"><svg><use href="#i-zin"/></svg></button>
+      <button class="btn icon small" id="bFit"><svg><use href="#i-fit"/></svg></button>
+    </div>
+  </section>
+
+  <section class="inspector glass" id="inspector">
+    <div class="insp-head"><span class="dot" id="inspDot"></span><b id="inspName" data-i18n="inspector">片段</b><small id="inspMeta"></small></div>
+    <p class="insp-empty" id="inspEmpty" data-i18n="noSel"></p>
+    <div class="fields" id="fields">
+      <label class="field"><span data-i18n="in">入点</span><input data-testid="clip-in" inputmode="decimal" autocomplete="off"><em data-i18n="sec">秒</em></label>
+      <label class="field"><span data-i18n="out">出点</span><input data-testid="clip-out" inputmode="decimal" autocomplete="off"><em data-i18n="sec">秒</em></label>
+      <label class="field"><span data-i18n="gain">音量</span><input data-testid="clip-gain" inputmode="decimal" autocomplete="off"><em data-i18n="db">dB</em></label>
+      <label class="field"><span data-i18n="fadeIn">淡入</span><input data-testid="fade-in" inputmode="decimal" autocomplete="off"><em data-i18n="sec">秒</em></label>
+      <label class="field"><span data-i18n="fadeOut">淡出</span><input data-testid="fade-out" inputmode="decimal" autocomplete="off"><em data-i18n="sec">秒</em></label>
+      <label class="field wide"><span data-i18n="xfade">与上一段交叉淡化</span><input data-testid="xfade" inputmode="decimal" autocomplete="off"><em data-i18n="sec">秒</em></label>
+    </div>
+  </section>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<section class="sheet glass" id="exportSheet" role="dialog" aria-modal="true" aria-labelledby="expTitle">
+  <h3 id="expTitle" data-i18n="exportTitle">导出</h3>
+  <div class="chips" id="fmtChips"></div>
+  <label class="row"><span data-i18n="format">格式</span>
+    <select data-testid="format" id="format">
+      <option value="mp3">MP3</option><option value="wav">WAV</option><option value="flac">FLAC</option>
+      <option value="m4a">M4A (AAC)</option><option value="ogg">OGG (Vorbis)</option><option value="opus">Opus</option><option value="aiff">AIFF</option>
+    </select></label>
+  <label class="row" id="brRow"><span data-i18n="bitrate">码率</span>
+    <select data-testid="bitrate" id="bitrate"><option value="128">128 kbps</option><option value="192">192 kbps</option><option value="256">256 kbps</option><option value="320" selected>320 kbps</option></select></label>
+  <label class="row switch"><span data-i18n="normalize">响度标准化</span><input type="checkbox" data-testid="normalize" id="normalize"><i></i></label>
+  <div class="prog" id="progWrap"><div class="bar-track" role="progressbar" data-testid="progress" id="progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="progFill"></i></div><small id="progLabel"></small></div>
+  <div class="actions">
+    <button class="btn" id="bExpClose" data-i18n="cancel">关闭</button>
+    <button class="btn accent" data-testid="export-go" id="bGo"><svg><use href="#i-export"/></svg><span data-i18n="go">开始导出</span></button>
+  </div>
+</section>
+
+<section class="sheet glass about" id="aboutSheet" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+  <h3 id="aboutTitle" data-i18n="aboutTitle">关于流音</h3>
+  <p data-i18n="aboutBody"></p>
+  <h4 data-i18n="shortcuts">快捷键</h4>
+  <ul class="keys">
+    <li><kbd>Space</kbd><span data-i18n="kSpace"></span></li>
+    <li><kbd>S</kbd><span data-i18n="kS"></span></li>
+    <li><kbd>Delete</kbd><span data-i18n="kDel"></span></li>
+    <li><kbd>Ctrl</kbd>+<kbd>Z</kbd><span data-i18n="kUndo"></span></li>
+    <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd><span data-i18n="kRedo"></span></li>
+    <li><kbd>Ctrl</kbd>+<kbd>滚轮</kbd><span data-i18n="kZoom"></span></li>
+    <li><kbd>Esc</kbd><span data-i18n="kEsc"></span></li>
+  </ul>
+  <h4 data-i18n="libs">第三方组件与许可证</h4>
+  <ul class="libs">
+    <li><b>FFmpeg</b>（ffmpeg.wasm <code>@ffmpeg/core 0.12.10</code>）— GPL-2.0-or-later · 用于冷门格式的解码和 MP3/FLAC/OGG/M4A 编码 · 源码：<a href="https://github.com/ffmpegwasm/ffmpeg.wasm" target="_blank" rel="noopener">github.com/ffmpegwasm/ffmpeg.wasm</a>、<a href="https://ffmpeg.org" target="_blank" rel="noopener">ffmpeg.org</a></li>
+    <li><b>@ffmpeg/ffmpeg 0.12.15</b> — MIT</li>
+    <li>LAME（MP3）LGPL · libvorbis BSD — 随 FFmpeg 一起编译</li>
+  </ul>
+  <div class="actions"><button class="btn accent" id="bAboutClose" data-i18n="cancel">关闭</button></div>
+</section>
+
+<div class="toast glass" data-testid="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
